@@ -1,0 +1,6 @@
+@echo off
+echo Installing requirements...
+pip install -r requirements.txt
+echo Starting Streamlit App...
+streamlit run app.py --theme.base="light" --theme.primaryColor="#0068C9" --theme.backgroundColor="#FFFFFF" --theme.secondaryBackgroundColor="#F0F2F6"
+pause
