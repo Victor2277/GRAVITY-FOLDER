@@ -1,0 +1,37 @@
+cookie:
+  expiry_days: 30
+  key: random_signature_key_gravity
+  name: gravity_auth_cookie
+credentials:
+  usernames:
+    '123':
+      email: iiiiii@gmail.com
+      first_name: james
+      is_approved: true
+      last_name: james
+      logged_in: false
+      password: $2b$12$v8alvJUBF0tlRzSCB6W1tuB0jgRLHkOTLm.qqw.jN4A4mZND4Ieau
+      roles: null
+    admin:
+      email: admin@gmail.com
+      failed_login_attempts: 0
+      is_approved: true
+      logged_in: false
+      name: Admin User
+      password: $2b$12$B1Bg0GNpkFoKiM6dnbYKWetTwKHZKCrrjZ/cdGXvwH4bHj/poT2CO
+    victor:
+      email: victor22776849@gmail.com
+      first_name: HSIEH
+      is_approved: true
+      last_name: BING CHENG
+      logged_in: false
+      password: $2b$12$KTGNwa96s/Tk8R78J.m6eu4wzfUnhy45Z682Wr/PvD8splYvD/xPG
+      password_hint: "\u88AB\u76DC\u904E\u7684"
+      roles: null
+preauthorized:
+  emails: []
+smtp:
+  server: smtp.gmail.com
+  port: 465
+  sender_email: victor22776849@gmail.com
+  app_password: pwcw pagt mxno unmd

@@ -6,3 +6,4 @@ numpy
 scipy
 streamlit-authenticator
 PyYAML
+yagmail

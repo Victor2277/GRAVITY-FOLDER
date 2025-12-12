@@ -107,11 +107,24 @@ def get_stock_financials(ticker: str):
             
         net_debt = total_debt - cash
         
+        net_debt = total_debt - cash
+        
         # Shares Outstanding
-        shares_outstanding = info.get('sharesOutstanding', 0)
+        shares_outstanding = info.get('sharesOutstanding')
+        if not shares_outstanding:
+             # Fallback: Market Cap / Price
+             mkt_cap = info.get('marketCap')
+             price = info.get('currentPrice') or info.get('regularMarketPrice')
+             if mkt_cap and price:
+                 shares_outstanding = mkt_cap / price
+             else:
+                 shares_outstanding = 0
         
         # Beta
-        beta = info.get('beta', 1.0)
+        beta = info.get('beta')
+        if beta is None:
+            # Default beta 1.0 if missing (common for foreign stocks)
+            beta = 1.0
         
         return {
             "ticker": ticker,
