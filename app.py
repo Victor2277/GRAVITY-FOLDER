@@ -448,19 +448,27 @@ def get_ohlc(ticker, interval):
     else:
         period = "5y"
         
-    df = stock.history(period=period, interval=interval)
-    
-    # Retry if empty for daily (sometime 2y is weird for some stocks)
-    if df.empty and interval == '1d':
-        df = stock.history(period="1y", interval=interval)
-    
-    if not df.empty:
+    try:
+        df = stock.history(period=period, interval=interval)
+        
+        # Retry if empty for daily (sometime 2y is weird for some stocks)
+        if df.empty and interval == '1d':
+            df = stock.history(period="1y", interval=interval)
+        
+        if df.empty:
+            st.error(f"⚠️ Yahoo Finance returned empty data for **{ticker}**. (Period: {period}, Interval: {interval})")
+            return df
+            
         # Normalize timezone
         df.index = df.index.tz_localize(None)
-    
-    return df
+        return df
+        
+    except Exception as e:
+        st.error(f"❌ yfinance history() failed: {str(e)}")
+        return pd.DataFrame()
 
 stock = get_stock_data(ticker)
+
 
 try:
     info = stock.info
@@ -468,8 +476,10 @@ try:
     stock_name = info.get('longName', ticker)
     currency_symbol = "NT$" if info.get('currency') == 'TWD' else "$"
     st.sidebar.success(f"成功載入: {stock_name} ({currency_symbol})")
-except:
-    st.error(f"無法找到股票代碼: {ticker}")
+except Exception as e:
+    st.error(f"❌ 無法找到股票代碼: {ticker}")
+    st.error(f"Error Details: {str(e)}")
+    st.info("💡 建議: 請確認代碼 (美股如 AAPL, 台股如 2330.TW) 或重新整理。")
     st.stop()
 
 # --- ETF Detection ---
