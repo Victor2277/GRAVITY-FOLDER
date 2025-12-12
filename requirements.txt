@@ -1,9 +1,12 @@
 streamlit
-yfinance
+yfinance>=0.2.40
 pandas
 plotly
 numpy
 scipy
+ta
+lxml
+requests
 streamlit-authenticator
 PyYAML
 yagmail
