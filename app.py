@@ -15,6 +15,7 @@ from backend.tech_analysis import analyze_macd_signals
 from backend.emailer import EmailService
 import secrets
 import time
+import traceback
 
 # Set page config
 # Set page config
@@ -465,6 +466,7 @@ def get_ohlc(ticker, interval):
         
     except Exception as e:
         st.error(f"❌ yfinance history() failed: {str(e)}")
+        st.code(traceback.format_exc())
         return pd.DataFrame()
 
 stock = get_stock_data(ticker)
@@ -472,6 +474,9 @@ stock = get_stock_data(ticker)
 
 try:
     info = stock.info
+    if info is None:
+        raise ValueError("yfinance returned None for stock.info (Possible IP block or Invalid Ticker)")
+        
     # Fallback to ticker if longName is missing
     stock_name = info.get('longName', ticker)
     currency_symbol = "NT$" if info.get('currency') == 'TWD' else "$"
@@ -479,6 +484,7 @@ try:
 except Exception as e:
     st.error(f"❌ 無法找到股票代碼: {ticker}")
     st.error(f"Error Details: {str(e)}")
+    st.code(traceback.format_exc())
     st.info("💡 建議: 請確認代碼 (美股如 AAPL, 台股如 2330.TW) 或重新整理。")
     st.stop()
 
