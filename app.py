@@ -16,6 +16,7 @@ from backend.emailer import EmailService
 import secrets
 import time
 import traceback
+import requests
 
 # Set page config
 # Set page config
@@ -434,12 +435,21 @@ interval = interval_map[timeframe]
 # --- Data Fetching ---
 @st.cache_resource
 def get_stock_data(ticker):
-    stock = yf.Ticker(ticker)
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    })
+    stock = yf.Ticker(ticker, session=session)
     return stock
 
 @st.cache_data
 def get_ohlc(ticker, interval):
-    stock = yf.Ticker(ticker)
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    })
+    stock = yf.Ticker(ticker, session=session)
+    
     
     # Robust period selection
     if interval in ['5m', '15m']:
@@ -472,21 +482,32 @@ def get_ohlc(ticker, interval):
 stock = get_stock_data(ticker)
 
 
-try:
-    info = stock.info
-    if info is None:
-        raise ValueError("yfinance returned None for stock.info (Possible IP block or Invalid Ticker)")
+
+# Retry mechanism for fetching stock info
+max_retries = 3
+for attempt in range(max_retries):
+    try:
+        info = stock.info
+        if info is None:
+            raise ValueError("yfinance returned None for stock.info")
+            
+        # Fallback to ticker if longName is missing
+        stock_name = info.get('longName', ticker)
+        currency_symbol = "NT$" if info.get('currency') == 'TWD' else "$"
+        st.sidebar.success(f"成功載入: {stock_name} ({currency_symbol})")
+        break # Success, exit loop
         
-    # Fallback to ticker if longName is missing
-    stock_name = info.get('longName', ticker)
-    currency_symbol = "NT$" if info.get('currency') == 'TWD' else "$"
-    st.sidebar.success(f"成功載入: {stock_name} ({currency_symbol})")
-except Exception as e:
-    st.error(f"❌ 無法找到股票代碼: {ticker}")
-    st.error(f"Error Details: {str(e)}")
-    st.code(traceback.format_exc())
-    st.info("💡 建議: 請確認代碼 (美股如 AAPL, 台股如 2330.TW) 或重新整理。")
-    st.stop()
+    except Exception as e:
+        if attempt < max_retries - 1:
+            time.sleep(1) # Wait 1s before retry
+            continue
+        else:
+            # Final attempt failed
+            st.error(f"❌ 無法找到股票代碼: {ticker}")
+            st.error(f"Error Details: {str(e)}")
+            st.code(traceback.format_exc())
+            st.info("💡 建議: 請確認代碼 (美股如 AAPL, 台股如 2330.TW) 或重新整理。")
+            st.stop()
 
 # --- ETF Detection ---
 is_etf = False
