@@ -435,20 +435,12 @@ interval = interval_map[timeframe]
 # --- Data Fetching ---
 @st.cache_resource
 def get_stock_data(ticker):
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    })
-    stock = yf.Ticker(ticker, session=session)
+    stock = yf.Ticker(ticker)
     return stock
 
 @st.cache_data
 def get_ohlc(ticker, interval):
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    })
-    stock = yf.Ticker(ticker, session=session)
+    stock = yf.Ticker(ticker)
     
     
     # Robust period selection
