@@ -432,7 +432,7 @@ interval_map = {
 interval = interval_map[timeframe]
 
 # --- Data Fetching ---
-@st.cache_resource
+# @st.cache_resource (Removed to prevent caching broken objects)
 def get_stock_data(ticker):
     stock = yf.Ticker(ticker)
     return stock
@@ -475,21 +475,36 @@ stock = get_stock_data(ticker)
 
 
 
+
+# --- Stock Info Fetching (Soft Fail Strategy) ---
 try:
     info = stock.info
     if info is None:
         raise ValueError("yfinance returned None for stock.info")
         
-    # Fallback to ticker if longName is missing
     stock_name = info.get('longName', ticker)
     currency_symbol = "NT$" if info.get('currency') == 'TWD' else "$"
     st.sidebar.success(f"成功載入: {stock_name} ({currency_symbol})")
+
 except Exception as e:
-    st.error(f"❌ 無法找到股票代碼: {ticker}")
-    st.error(f"Error Details: {str(e)}")
-    st.code(traceback.format_exc())
-    st.info("💡 建議: 請確認代碼 (美股如 AAPL, 台股如 2330.TW) 或重新整理。")
-    st.stop()
+    # ⚠️ Block detection or Data missing
+    # Don't stop! Try to recover using Fast Info or defaults
+    st.sidebar.warning(f"⚠️ 無法取得詳細資訊 ({str(e)})，嘗試載入圖表...")
+    
+    try:
+        # Try Fast Info (often works when .info is blocked)
+        fast_info = stock.fast_info
+        currency = fast_info.currency
+        currency_symbol = "NT$" if currency == 'TWD' else "$"
+        stock_name = ticker # fast_info doesn't have long name usually
+    except:
+        # Absolute Fallback
+        stock_name = ticker
+        currency_symbol = "NT$" if ".TW" in ticker else "$"
+        info = {} # Empty dict to prevent downstream errors if passed
+    
+    st.sidebar.success(f"已載入: {stock_name} ({currency_symbol})")
+    # Continue execution to Charting...
 
 # --- ETF Detection ---
 is_etf = False
