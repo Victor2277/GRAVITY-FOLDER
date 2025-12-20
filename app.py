@@ -13,6 +13,8 @@ from yaml.loader import SafeLoader
 import streamlit_authenticator as stauth
 from backend.tech_analysis import analyze_macd_signals
 from backend.emailer import EmailService
+from backend.portfolio_manager import PortfolioManager
+from backend.scorer import StockScorer
 import secrets
 import time
 import traceback
@@ -207,6 +209,59 @@ if st.session_state["authentication_status"]:
 
     authenticator.logout('Logout', 'sidebar')
     st.sidebar.write(f'Welcome *{st.session_state["name"]}*')
+    
+    # --- Navigation ---
+    page = st.sidebar.radio("功能導覽", ["📈 個股分析", "💰 我的投資組合"])
+    
+    if page == "💰 我的投資組合":
+        st.title("💰 我的投資組合 (My Portfolio)")
+        pm = PortfolioManager()
+        
+        # Add Trade Form
+        with st.expander("➕ 新增交易 (Add Trade)", expanded=False):
+            with st.form("add_trade_form"):
+                c1, c2, c3 = st.columns(3)
+                p_symbol = c1.text_input("股票代碼 (Symbol)", value="AAPL")
+                p_cost = c2.number_input("成本單價 (Cost)", min_value=0.0, value=150.0, step=0.1)
+                p_qty = c3.number_input("股數 (Qty)", min_value=0.0, value=1.0, step=0.1)
+                submitted = st.form_submit_button("新增 (Add)")
+                if submitted:
+                    pm.add_trade(st.session_state["username"], p_symbol, p_cost, p_qty)
+                    st.success(f"已新增 {p_symbol} ({p_qty} 股)")
+                    st.rerun()
+
+        # Analysis
+        df_port, total_val, total_pl = pm.get_analysis(st.session_state["username"])
+        
+        # Summary Metrics
+        m1, m2, m3 = st.columns(3)
+        m1.metric("總市值 (Total Value)", f"${total_val:,.2f}")
+        m2.metric("總損益 (Total P/L)", f"${total_pl:,.2f}", delta=f"{total_pl:,.2f}")
+        val_color = "normal" if total_pl >= 0 else "inverse"
+        
+        # Dataframe
+        if not df_port.empty:
+            # Color coding function for "Suggestion"
+            def highlight_suggestion(val):
+                color = 'green' if 'Buy' in val else 'red' if 'Sell' in val else 'white'
+                return f'color: {color}'
+
+            st.dataframe(df_port.style.applymap(highlight_suggestion, subset=['Suggestion']), use_container_width=True)
+            
+            # Remove Trade
+            st.divider()
+            del_sym = st.selectbox("移除持股 (Select to Remove)", options=df_port['Symbol'].unique())
+            if st.button("🗑️ 移除 (Remove)"):
+                pm.remove_trade(st.session_state["username"], del_sym)
+                st.warning(f"已移除 {del_sym}")
+                st.rerun()
+        else:
+            st.info("目前沒有持股。請使用上方表單新增。")
+            
+        st.stop() # Stop here to mimic a "Page"
+        
+    st.sidebar.divider()
+
 elif st.session_state["authentication_status"] is False:
     st.error('Username/password is incorrect')
     st.stop()
@@ -432,7 +487,11 @@ interval_map = {
 interval = interval_map[timeframe]
 
 # --- Data Fetching ---
-# @st.cache_resource (Removed to prevent caching broken objects)
+@st.cache_data(ttl=3600*24) # Cache for 24 hours
+def get_stock_score(ticker):
+    scorer = StockScorer(ticker)
+    return scorer.analyze()
+
 def get_stock_data(ticker):
     stock = yf.Ticker(ticker)
     return stock
@@ -477,6 +536,7 @@ stock = get_stock_data(ticker)
 
 
 # --- Stock Info Fetching (Soft Fail Strategy) ---
+info = {}
 try:
     info = stock.info
     if info is None:
@@ -491,6 +551,7 @@ except Exception as e:
     # Don't stop! Try to recover using Fast Info or defaults
     st.sidebar.warning(f"⚠️ 無法取得詳細資訊 ({str(e)})，嘗試載入圖表...")
     
+    info = {}
     try:
         # Try Fast Info (often works when .info is blocked)
         fast_info = stock.fast_info
@@ -508,7 +569,7 @@ except Exception as e:
 
 # --- ETF Detection ---
 is_etf = False
-if info.get('quoteType') == 'ETF':
+if info and info.get('quoteType') == 'ETF':
     is_etf = True
     st.sidebar.info("ℹ️ 偵測到 ETF (Exchange Traded Fund)")
     
@@ -636,6 +697,25 @@ class DCFValuator:
 
 # --- Main Layout ---
 st.title(f"{stock_name} ({ticker}) 價值投資分析")
+
+# --- Value Scorecard ---
+with st.expander("📊 價值投資體質評分標準 (10點檢查)"):
+    score_data = get_stock_score(ticker)
+    score = score_data.get('score', 0)
+    total = score_data.get('total', 10)
+    details = score_data.get('details', [])
+    
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        st.metric("體質總分", f"{score} / {total}")
+    
+    with c2:
+        for item in details:
+            icon = "✅" if item['passed'] else "❌"
+            st.write(f"{icon} **{item['name']}**: {item['value']}")
+            
+# --- End Scorecard ---
+
 
 tab0, tab_lynch, tab1, tab2, tab3 = st.tabs(["技術分析", "彼得林區估值", "財務報表", "估值模型", "投資組合最佳化"])
 
